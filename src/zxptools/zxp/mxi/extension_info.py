@@ -107,7 +107,7 @@ class ExtensionInfo:
             description = description_element.text
 
         license_agreement = None
-        license_agreement_element = root_element.find("license_agreement")
+        license_agreement_element = root_element.find("license-agreement")
         if license_agreement_element is not None:
             license_agreement = license_agreement_element.text
 

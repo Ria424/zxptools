@@ -212,8 +212,9 @@ class ExtensionInfo:
                 "Atleast one FileData in ExtensionInfo.files is required."
             )
 
+        files_element = etree.SubElement(root_element, "files")
         for file in self.files:
-            etree.SubElement(root_element, "file", file.dump())
+            etree.SubElement(files_element, "file", file.dump())
 
         if self.signatures is not None:
             signatures_element = etree.SubElement(root_element, "signatures")

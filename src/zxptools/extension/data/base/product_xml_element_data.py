@@ -1,9 +1,11 @@
-__all__ = ("MXIProductElement",)
+__all__ = ("ProductElement",)
+
+from typing import Literal, TypedDict
 
 from zxptools.type import XMLElementData
 
 
-class MXIProductElement:
+class ProductElement:
     __slots__ = (
         "name",
         "primary",
@@ -25,3 +27,15 @@ class MXIProductElement:
             "tag": "product",
             "text": None,
         }
+
+
+class ProductXMLElementDataAttrib(TypedDict):
+    name: str
+    version: str
+    primary: Literal["true", "false"]
+
+
+class ProductXMLElementData(XMLElementData):
+    attrib: ProductXMLElementDataAttrib
+    tag: Literal["product"]
+    text: None

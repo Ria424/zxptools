@@ -2,13 +2,12 @@ __all__ = (
     "AbstractZxpFileEndpoint",
     "AbstractZxpFileDataEndpoint",
     "AbstractZxpSourceFileEndpoint",
-    "ZxpStandardFileEndpoint",
-    "ZxpArcFileEndpoint",
     "ZxpFileEndpoint",
     "ZxpFileDataEndpoint",
     "zxp_write",
 )
 
+import os
 import pathlib
 import zipfile
 from typing import Protocol, runtime_checkable
@@ -33,93 +32,80 @@ class AbstractZxpSourceFileEndpoint(AbstractZxpFileEndpoint, Protocol):
     def get_source(self) -> pathlib.PurePath: ...
 
 
-class ZxpStandardFileEndpoint(AbstractZxpSourceFileEndpoint):
+class ZxpFileEndpoint(AbstractZxpSourceFileEndpoint):
+    """Indicates the start and end points of a file."""
+
     __slots__ = (
-        "source",
-        "destination_dirname",
-    )
-
-    def __init__(
-        self, source: pathlib.PurePath, destination_dirname: pathlib.PurePath
-    ) -> None:
-        self.source = source
-        self.destination_dirname = destination_dirname
-
-    def get_arcname(self) -> pathlib.PurePath:
-        return self.source
-
-    def get_source(self) -> pathlib.PurePath:
-        return self.source
-
-    def get_destination_dirname(self) -> pathlib.PurePath:
-        return self.destination_dirname
-
-
-class ZxpArcFileEndpoint(AbstractZxpSourceFileEndpoint):
-    __slots__ = (
-        "source",
-        "destination_dirname",
         "arcname",
+        "destination_dir",
+        "source",
     )
 
     def __init__(
         self,
+        *,
         source: pathlib.PurePath,
-        destination_dirname: pathlib.PurePath,
-        arcname: pathlib.PurePath,
+        destination_dir: pathlib.PurePath,
+        arcname: pathlib.PurePath | None = None,
     ) -> None:
+        """
+        :param source: Location of the current file.
+        :param destination_dir: Directory location after the extension installation in the Flash/Animate app.
+        It should start with `"$flash"`.
+        :param arcname: New file name to give to file when compressed to extension file.
+        """
+
         self.source = source
-        self.destination_dirname = destination_dirname
+
+        if not os.path.isfile(self.source):
+            raise Exception(f'self.source "{self.source}" is not a file.')
+
+        self.destination_dir = destination_dir
+
         self.arcname = arcname
 
+        if self.arcname is not None and self.arcname.is_absolute():
+            raise Exception(
+                f'self.arcname "{self.arcname}" must be a reletive path or None.'
+            )
+
     def get_arcname(self) -> pathlib.PurePath:
-        return self.arcname
+        return (
+            self.arcname
+            if self.arcname is not None
+            else pathlib.PurePath(os.path.relpath(self.source, os.getcwd()))
+        )
 
     def get_source(self) -> pathlib.PurePath:
         return self.source
 
     def get_destination_dirname(self) -> pathlib.PurePath:
-        return self.destination_dirname
-
-
-class ZxpFileEndpoint(AbstractZxpSourceFileEndpoint):
-    __slots__ = (
-        "source",
-        "destination",
-    )
-
-    def __init__(
-        self, source: pathlib.PurePath, destination: pathlib.PurePath
-    ) -> None:
-        self.source = source
-        self.destination = destination
-
-    def get_arcname(self) -> pathlib.PurePath:
-        return self.source.parent / self.destination.name
-
-    def get_source(self) -> pathlib.PurePath:
-        return self.source
-
-    def get_destination_dirname(self) -> pathlib.PurePath:
-        return self.destination
+        return self.destination_dir
 
 
 class ZxpFileDataEndpoint(AbstractZxpFileDataEndpoint):
     __slots__ = (
-        "data",
         "arcname",
-        "destination",
+        "data",
+        "destination_dir",
     )
 
     def __init__(
         self,
         data: FileData,
+        destination_dir: pathlib.PurePath,
         arcname: pathlib.PurePath,
-        destination: pathlib.PurePath,
     ) -> None:
+        """
+        :param data: Data to be compressed to extension file.
+        :param destination_dir: Folder location after the extension installation in the Flash/Animate app.
+        It should start with `"$flash"`.
+        :param arcname: New file name to give to file when compressed to extension file.
+        """
+
         self.data = data
+        self.destination_dir = destination_dir
         self.arcname = arcname
-        self.destination = destination
 
     def get_arcname(self) -> pathlib.PurePath:
         return self.arcname
@@ -128,7 +114,7 @@ class ZxpFileDataEndpoint(AbstractZxpFileDataEndpoint):
         return self.data
 
     def get_destination_dirname(self) -> pathlib.PurePath:
-        return self.destination
+        return self.destination_dir
 
 
 def zxp_write(zxpfile: zipfile.ZipFile, file: AbstractZxpFileEndpoint) -> None:

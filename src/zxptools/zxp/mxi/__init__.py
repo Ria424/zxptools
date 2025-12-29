@@ -1,9 +1,9 @@
 __all__ = (
-    "ExtensionInfo",
-    "FileElement",
-    "ProductElement",
+    "MXI",
+    "MXIFileElement",
+    "MXIProductElement",
 )
 
-from zxptools.zxp.mxi.extension_info import ExtensionInfo
-from zxptools.zxp.mxi.file_element import FileElement
-from zxptools.zxp.mxi.product_element import ProductElement
+from zxptools.zxp.mxi.mxi import MXI
+from zxptools.zxp.mxi.file_element import MXIFileElement
+from zxptools.zxp.mxi.product_element import MXIProductElement

@@ -1,9 +1,11 @@
-__all__ = ("FileElement",)
+__all__ = ("MXIFileElement",)
 
 from typing import Literal
 
+from zxptools.type import XMLElementData
 
-class FileElement:
+
+class MXIFileElement:
     __slots__ = (
         "destination",
         "file_type",
@@ -21,9 +23,13 @@ class FileElement:
         self.destination = destination
         self.file_type = file_type
 
-    def dump(self) -> dict[str, str]:
+    def dump(self) -> XMLElementData:
         return {
-            "source": self.source,
-            "destination": self.destination,
-            "file_type": self.file_type,
+            "attrib": {
+                "source": self.source,
+                "destination": self.destination,
+                "file_type": self.file_type,
+            },
+            "tag": "file",
+            "text": None,
         }

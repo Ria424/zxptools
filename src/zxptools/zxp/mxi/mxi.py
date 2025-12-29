@@ -1,17 +1,17 @@
-__all__ = ("ExtensionInfo",)
+__all__ = ("MXI",)
 
 from collections.abc import MutableSequence
-from os import PathLike
-from typing import IO, AnyStr, Literal
+from typing import IO, Literal
 
 from lxml import etree
 
 from zxptools import util
-from zxptools.zxp.mxi.file_element import FileElement
-from zxptools.zxp.mxi.product_element import ProductElement
+from zxptools.type import StrOrBytesPath
+from zxptools.zxp.mxi.file_element import MXIFileElement
+from zxptools.zxp.mxi.product_element import MXIProductElement
 
 
-class ExtensionInfo:
+class MXI:
     __slots__ = (
         "name",
         "version",
@@ -39,9 +39,9 @@ class ExtensionInfo:
         *,
         author: str | None = None,
         description: str | None = None,
-        files: MutableSequence[FileElement] | None = None,
+        files: MutableSequence[MXIFileElement] | None = None,
         license_agreement: str | None = None,
-        products: MutableSequence[ProductElement] | None = None,
+        products: MutableSequence[MXIProductElement] | None = None,
         signatures: str | None = None,
         ui_access: str | None = None,
         update: str | None = None,
@@ -53,11 +53,11 @@ class ExtensionInfo:
         self.locked = locked
         self.author = author
         self.description = description
-        self.files: MutableSequence[FileElement] = (
+        self.files: MutableSequence[MXIFileElement] = (
             files if files is not None else []
         )
         self.license_agreement = license_agreement
-        self.products: MutableSequence[ProductElement] = (
+        self.products: MutableSequence[MXIProductElement] = (
             products if products is not None else []
         )
         self.signatures = signatures
@@ -65,9 +65,7 @@ class ExtensionInfo:
         self.update = update
 
     @classmethod
-    def load(
-        cls, source: AnyStr | IO[AnyStr] | PathLike[AnyStr]
-    ) -> "ExtensionInfo":
+    def load(cls, source: StrOrBytesPath | IO[str] | IO[bytes]) -> "MXI":
         element_tree = etree.parse(
             source,
             parser=etree.XMLParser(
@@ -90,7 +88,7 @@ class ExtensionInfo:
 
         files = list(
             map(
-                lambda file_element: FileElement(
+                lambda file_element: MXIFileElement(
                     source=util.xml.get_attrib(file_element, "source"),
                     destination=util.xml.get_attrib(
                         file_element, "destination"
@@ -117,7 +115,7 @@ class ExtensionInfo:
 
         products = list(
             map(
-                lambda product_element: ProductElement(
+                lambda product_element: MXIProductElement(
                     name=util.xml.get_attrib(product_element, "name"),
                     version=util.xml.get_attrib(product_element, "version"),
                     primary=util.xml.get_bool_attrib(
@@ -143,7 +141,7 @@ class ExtensionInfo:
         if update_element is not None:
             update = update_element.text
 
-        return ExtensionInfo(
+        return MXI(
             name=util.xml.get_attrib(root_element, "name"),
             version=util.xml.get_attrib(root_element, "version"),
             type_=util.xml.get_attrib(root_element, "type"),
@@ -180,12 +178,17 @@ class ExtensionInfo:
 
         if not self.products:
             raise Exception(
-                "Atleast one ProductData in ExtensionInfo.products is required."
+                "Atleast one ProductData in MXI.products is required."
             )
 
         products_element = etree.SubElement(root_element, "products")
         for product in self.products:
-            etree.SubElement(products_element, "product", product.dump())
+            product_element_data = product.dump()
+            etree.SubElement(
+                products_element,
+                product_element_data["tag"],
+                product_element_data["attrib"],
+            )
 
         if self.update is not None:
             update_element = etree.SubElement(root_element, "update")
@@ -208,13 +211,16 @@ class ExtensionInfo:
             )
 
         if not self.files:
-            raise Exception(
-                "Atleast one FileData in ExtensionInfo.files is required."
-            )
+            raise Exception("Atleast one FileData in MXI.files is required.")
 
         files_element = etree.SubElement(root_element, "files")
         for file in self.files:
-            etree.SubElement(files_element, "file", file.dump())
+            file_element_data = file.dump()
+            etree.SubElement(
+                files_element,
+                file_element_data["tag"],
+                file_element_data["attrib"],
+            )
 
         if self.signatures is not None:
             signatures_element = etree.SubElement(root_element, "signatures")

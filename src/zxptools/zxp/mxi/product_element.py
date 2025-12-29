@@ -1,7 +1,9 @@
-__all__ = ("ProductElement",)
+__all__ = ("MXIProductElement",)
+
+from zxptools.type import XMLElementData
 
 
-class ProductElement:
+class MXIProductElement:
     __slots__ = (
         "name",
         "primary",
@@ -13,9 +15,13 @@ class ProductElement:
         self.version = version
         self.primary = primary
 
-    def dump(self) -> dict[str, str]:
+    def dump(self) -> XMLElementData:
         return {
-            "name": self.name,
-            "version": self.version,
-            "primary": "true" if self.primary else "false",
+            "attrib": {
+                "name": self.name,
+                "version": self.version,
+                "primary": "true" if self.primary else "false",
+            },
+            "tag": "product",
+            "text": None,
         }

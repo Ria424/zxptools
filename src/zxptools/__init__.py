@@ -1,13 +1,10 @@
 __all__ = (
     "build",
-    "ZxpFileEndpoint",
-    "ZxpFileDataEndpoint",
+    "xi",
+    "BuildContext",
+    "WatchContext",
 )
 
 __version__ = "0.0.1"
 
-from zxptools.build import build
-from zxptools.zxp.endpoint import (
-    ZxpFileDataEndpoint,
-    ZxpFileEndpoint,
-)
+from zxptools import xi

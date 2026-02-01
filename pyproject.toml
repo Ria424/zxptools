@@ -1,12 +1,17 @@
 [build-system]
-requires = ["uv_build>=0.9.15,<0.10.0"]
+requires = ["uv_build>=0.9.28,<0.10.0"]
 build-backend = "uv_build"
 
 [project]
 name = "zxptools"
 version = "0.0.0"
 requires-python = ">=3.13"
-dependencies = ["lxml>=6.0.2"]
+dependencies = [
+    "attrs>=25.4.0",
+    "lxml>=6.0.2",
+    "watchdog>=6.0.0",
+    "xmltodict>=1.0.2",
+]
 
 [project.optional-dependencies]
 dev = ["lxml-stubs>=0.5.1"]

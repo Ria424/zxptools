@@ -3,13 +3,29 @@ __all__ = (
     "get_bool_attrib",
 )
 
+from typing import Literal, overload
+
 from lxml import etree
 
 
-def get_attrib(element: etree._Element, name: str) -> str:
+@overload
+def get_attrib(
+    element: etree._Element, name: str, *, strict: Literal[False] = ...
+) -> str | None: ...
+
+
+@overload
+def get_attrib(
+    element: etree._Element, name: str, *, strict: Literal[True] = ...
+) -> str: ...
+
+
+def get_attrib(
+    element: etree._Element, name: str, *, strict: bool = False
+) -> str | None:
     value = element.get(name)
 
-    if value is None:
+    if strict and value is None:
         raise KeyError(name)
 
     if isinstance(value, bytes):
@@ -18,5 +34,8 @@ def get_attrib(element: etree._Element, name: str) -> str:
     return value
 
 
-def get_bool_attrib(element: etree._Element, name: str) -> bool:
-    return get_attrib(element, name) == "true"
+def get_bool_attrib(element: etree._Element, name: str) -> bool | None:
+    attrib = get_attrib(element, name)
+    if attrib is None:
+        return None
+    return attrib == "true"

@@ -1,58 +1,34 @@
-import pathlib
-
 __all__ = (
-    "MXIFileLike",
     "SizedBuffer",
     "StrOrBytesPath",
-    "XMLElementDataLike",
-    "XMLElementData",
     "XMLElementLike",
-    "XMLMutableMapping",
+    "XMLDict",
 )
 
 from collections.abc import (
     Buffer,
     Iterator,
-    Mapping,
-    MutableMapping,
-    Sized,
     Sequence,
+    Sized,
 )
 from os import PathLike
-from typing import Protocol, TypedDict
+from typing import Protocol, Union
 
 StrOrBytesPath = str | bytes | PathLike[str] | PathLike[bytes]
-
-
-class MXIFileLike(Protocol):
-    def get_source(self) -> pathlib.PurePath: ...
-    def get_arcname(self) -> pathlib.PurePath: ...
-    def get_destination_dirname(self) -> pathlib.PurePath: ...
 
 
 class SizedBuffer(Sized, Buffer, Protocol):
     pass
 
 
-class XMLElementDataLike(Protocol):
-    attrib: Mapping[str, str]
-    tag: str
-    text: str | None
-
-
-class XMLElementData(TypedDict):
-    attrib: Mapping[str, str]
-    tag: str
-    text: str | None
-
-
-class XMLElementLike(XMLElementDataLike, Protocol):
+class XMLElementLike(Protocol):
     def __iter__(self) -> Iterator["XMLElementLike"]: ...
     def find(self, tag: str) -> "XMLElementLike" | None: ...
 
 
-XMLMutableMapping = (
-    MutableMapping[str, str]
-    | MutableMapping[str, Sequence[str]]
-    | MutableMapping[str, "XMLMutableMapping"]
-)
+XMLDict = Union[
+    dict[str, str],
+    dict[str, Sequence[str]],
+    dict[str, Sequence["XMLDict"]],
+    dict[str, "XMLDict"],
+]

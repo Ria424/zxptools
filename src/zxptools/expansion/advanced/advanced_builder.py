@@ -1,12 +1,15 @@
-from zxptools.type import XMLMutableMapping
-from zxptools.xi import MXIBuilder, MXIFile
+__all__ = ("AdvancedMXIBuilder",)
+
+from zxptools.xi.mxi import AbstractMXIFile, MXIBuilder
 
 
 class AdvancedMXIBuilder(MXIBuilder):
-    def _get_file_element(self, file: MXIFile) -> XMLMutableMapping:
-        return {
-            "@source": file.source,
-            "@archive": file.arcname,
-            "@destination": file.destination_dir,
-            "@file-type": "ordinary",
-        }
+    def _get_file_element_attributes(
+        self, file: AbstractMXIFile
+    ) -> dict[str, str]:
+        attributes: dict[str, str] = super()._get_file_element_attributes(file)
+
+        if file.arcname != file.source:
+            attributes["@archive"] = file.arcname.as_posix()
+
+        return attributes

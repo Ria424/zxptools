@@ -8,9 +8,7 @@ import struct
 import warnings
 from typing import NamedTuple
 
-
-def is_32bit() -> bool:
-    return struct.calcsize("P") * 8 == 32
+_IS_32BIT: bool = struct.calcsize("P") * 8 == 32
 
 
 class DefaultPathToken(NamedTuple):
@@ -22,7 +20,7 @@ class DefaultPathToken(NamedTuple):
 DEFAULT_TOKENS = {
     "system": DefaultPathToken(
         "/System",
-        "C:\\Windows\\system32" if is_32bit() else "C:\\Windows\\SysWOW64",
+        "C:\\Windows\\system32" if _IS_32BIT else "C:\\Windows\\SysWOW64",
     ),
     "system64": DefaultPathToken("/System", "C:\\Windows\\system32"),
     "fonts": DefaultPathToken("/Library/Fonts", "C:\\Windows\\Fonts"),
@@ -44,10 +42,8 @@ For Example: "/Users/CoolUser/Library/Application Support/Adobe/Animate 2024/en_
 }
 
 
-def replace_path_token(s: str, **custom_tokens) -> str:
-    print(f'"{s}" -> ', end="")
-
-    path_tokens = {
+def replace_path_token(s: str, **custom_tokens: str) -> str:
+    path_tokens: dict[str, str | None] = {
         name: token_value.windows if os.name == "nt" else token_value.macos
         for name, token_value in DEFAULT_TOKENS.items()
     }

@@ -1,13 +1,21 @@
 __all__ = ("MXIParser",)
 
 import pathlib
+from typing import Any, TypeGuard, Literal
 
 from lxml import etree
 
 from zxptools import util
 from zxptools.type import StrOrBytesPath
 from zxptools.xi import XIVersion
-from zxptools.xi.mxi import MXI, MXIFile, MXIProduct, MXIUpdate
+from zxptools.xi.mxi import (
+    MXI,
+    MXIFile,
+    MXIProduct,
+    MXIUpdate,
+    file,
+)
+from zxptools.xi.mxi.file import AbstractMXIDataFlow
 
 
 class MXIParser:
@@ -28,18 +36,33 @@ class MXIParser:
             version=XIVersion.from_str(
                 util.xml.get_attrib(self.root_element, "version", strict=True)
             ),
+            products=self._parse_products_element(),
             extension_type=util.xml.get_attrib(self.root_element, "type"),
+            icon=(
+                None
+                if (
+                    icon_raw_path := util.xml.get_attrib(
+                        self.root_element, "icon"
+                    )
+                )
+                is None
+                else pathlib.PurePath(icon_raw_path)
+            ),
             requires_restart=util.xml.get_bool_attrib(
-                self.root_element, "requires-restart"
+                self.root_element, "requires-restart", default=False
             ),
             author=self._parse_author_element(),
+            data_flow=self._parse_files_element(),
             description=self._parse_description_element(),
-            files=self._parse_files_element(),
             license_agreement=self._parse_license_agreement_element(),
-            products=self._parse_products_element(),
-            ui_access=self._parse_ui_access_element(),
             update=self._parse_update_element(),
+            ui_access=self._parse_ui_access_element(),
         )
+
+    def _is_valid_platform(
+        self, platform: Any
+    ) -> TypeGuard[Literal["mac", "win"]]:
+        return platform == "mac" or platform == "win"
 
     def _parse_author_element(self) -> str | None:
         return (
@@ -56,7 +79,7 @@ class MXIParser:
             else description_element.text
         ) or ""
 
-    def _parse_files_element(self) -> list[MXIFile]:
+    def _parse_files_element(self) -> list[AbstractMXIDataFlow]:
         files_element = self.root_element.find("files")
         if files_element is None:
             return []
@@ -68,7 +91,7 @@ class MXIParser:
             )
         )
 
-    def _parse_file_element(self, file_element) -> MXIFile:
+    def _parse_file_element(self, file_element: Any) -> AbstractMXIDataFlow:
         return MXIFile(
             source=pathlib.PurePath(
                 util.xml.get_attrib(file_element, "source", strict=True)
@@ -76,6 +99,19 @@ class MXIParser:
             destination_dir=pathlib.PurePath(
                 util.xml.get_attrib(file_element, "destination", strict=True)
             ),
+            file_type=file.is_valid_file_type(
+                util.xml.get_attrib(
+                    file_element, "file-type", default="ordinary"
+                )
+            ),
+            platform=self._is_valid_platform(
+                util.xml.get_attrib(file_element, "platform")
+            ),
+            shared=(
+                util.xml.get_attrib(file_element, "shared", default="")
+                == "true"
+            ),
+            win_extension=util.xml.get_attrib(file_element, "win-extension"),
         )
 
     def _parse_license_agreement_element(self) -> str | None:
@@ -102,7 +138,7 @@ class MXIParser:
             )
         )
 
-    def _parse_product_element(self, product_element) -> MXIProduct:
+    def _parse_product_element(self, product_element: Any) -> MXIProduct:
         return MXIProduct(
             name=util.xml.get_attrib(product_element, "name", strict=True),
             version=util.xml.get_attrib(
@@ -127,8 +163,9 @@ class MXIParser:
             else MXIUpdate(
                 url=util.xml.get_attrib(update_element, "url", strict=True),
                 method=(
-                    util.xml.get_attrib(update_element, "method")
-                    or "directlink"
+                    util.xml.get_attrib(
+                        update_element, "method", default="directlink"
+                    )
                 ),
             )
         )

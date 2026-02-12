@@ -1,3 +1,6 @@
-__all__ = ("xml",)
+__all__ = (
+    "attrs",
+    "xml",
+)
 
-from zxptools.util import xml
+from zxptools.util import attrs, xml

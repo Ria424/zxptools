@@ -2,9 +2,9 @@ __all__ = ("Watcher",)
 
 import logging
 import os
+import pathlib
 import time
 from collections.abc import Callable
-from typing import Any
 
 from watchdog.events import (
     DirCreatedEvent,
@@ -19,29 +19,32 @@ from watchdog.events import (
 )
 from watchdog.observers.polling import PollingObserver
 
-from zxptools.extension.builder import Builder
+from zxptools.extension.building.builder import Builder
 
 
-class WatchEventHandler(PatternMatchingEventHandler):
+class WatcherEventHandler(PatternMatchingEventHandler):
     __slots__ = (
-        "build_func",
+        "callback",
         "logger",
     )
 
-    def __init__(self, *, parent: Any, patterns: list[str]) -> None:
+    def __init__(
+        self,
+        callback: Callable[[], None] | None = None,
+        *,
+        patterns: list[str],
+    ) -> None:
         super().__init__(patterns=patterns)
+
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
-        self.logger = logging.getLogger("test")
+        self.logger: logging.Logger = logging.getLogger("watcher")
         self.logger.setLevel(logging.INFO)
 
-        self.parent = parent
-
-    def callback(self) -> None:
-        self.parent.callback()
+        self.callback = callback
 
     def on_moved(self, event: DirMovedEvent | FileMovedEvent) -> None:
         super().on_moved(event)
@@ -51,7 +54,8 @@ class WatchEventHandler(PatternMatchingEventHandler):
             "Moved %s: from %s to %s", what, event.src_path, event.dest_path
         )
 
-        self.callback()
+        if self.callback is not None:
+            self.callback()
 
     def on_created(self, event: DirCreatedEvent | FileCreatedEvent) -> None:
         super().on_created(event)
@@ -59,7 +63,8 @@ class WatchEventHandler(PatternMatchingEventHandler):
         what = "directory" if event.is_directory else "file"
         self.logger.info("Created %s: %s", what, event.src_path)
 
-        self.callback()
+        if self.callback is not None:
+            self.callback()
 
     def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
         super().on_deleted(event)
@@ -67,7 +72,8 @@ class WatchEventHandler(PatternMatchingEventHandler):
         what = "directory" if event.is_directory else "file"
         self.logger.info("Deleted %s: %s", what, event.src_path)
 
-        self.callback()
+        if self.callback is not None:
+            self.callback()
 
     def on_modified(self, event: DirModifiedEvent | FileModifiedEvent) -> None:
         super().on_modified(event)
@@ -75,54 +81,65 @@ class WatchEventHandler(PatternMatchingEventHandler):
         what = "directory" if event.is_directory else "file"
         self.logger.info("Modified %s: %s", what, event.src_path)
 
-        self.callback()
+        if self.callback is not None:
+            self.callback()
 
 
 class Watcher:
     __slots__ = (
         "_dependencies",
+        "_observer",
         "builder",
-        "callbacks",
+        "callback",
         "tokens",
     )
 
     def __init__(self, builder: Builder) -> None:
-        self._dependencies: set[str] = set()
+        self._dependencies: set[pathlib.PurePath] = set()
+        self._observer: PollingObserver = PollingObserver()
+
         self.builder: Builder = builder
-        self.callbacks: dict[str, Callable[[], None]] = {}
+        self.callback: Callable[[], None] | None = None
         self.tokens: dict[str, str] = {}
 
-    def add_dependency(self, dependency: str) -> None:
-        self._dependencies.add(os.path.normpath(os.path.abspath(dependency)))
+    def add_dependency(self, dependency: pathlib.PurePath) -> None:
+        if self._observer.is_alive():
+            raise Exception("Cannot modify dependencies while watching.")
+        self._dependencies.add(dependency)
 
-    def remove_dependency(self, dependency: str) -> None:
-        self._dependencies.remove(
-            os.path.normpath(os.path.abspath(dependency))
-        )
+    def update_dependency(self, *dependencies: pathlib.PurePath) -> None:
+        if self._observer.is_alive():
+            raise Exception("Cannot modify dependencies while watching.")
+        self._dependencies.update(dependencies)
 
-    def get_dependency(self) -> set[str]:
+    def remove_dependency(self, dependency: pathlib.PurePath) -> None:
+        if self._observer.is_alive():
+            raise Exception("Cannot modify dependencies while watching.")
+        self._dependencies.remove(dependency)
+
+    def get_dependency(self) -> set[pathlib.PurePath]:
         return self._dependencies.copy()
 
-    def callback(self) -> None:
-        for callback in self.callbacks.values():
-            callback()
+    def sync(self) -> None:
         self.builder.build_direct(must_exist=False, **self.tokens)
 
     def watch(self) -> None:
-        observer = PollingObserver()
-        observer.schedule(
-            WatchEventHandler(
-                parent=self,
-                patterns=list(self._dependencies),
+        self._observer.schedule(
+            WatcherEventHandler(
+                self.sync,
+                patterns=list(path.as_posix() for path in self._dependencies),
             ),
             os.getcwd(),
             recursive=True,
         )
-        observer.start()
+
+        self.sync()
+
+        self._observer.start()
 
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            observer.stop()
-            observer.join()
+            self._observer.stop()
+            self._observer.join()
